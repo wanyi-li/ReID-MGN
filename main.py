@@ -5,7 +5,6 @@ from tqdm import tqdm
 import matplotlib
 
 matplotlib.use('agg')
-import matplotlib.pyplot as plt
 
 import torch
 from torch.optim import lr_scheduler
@@ -17,6 +16,7 @@ from loss import Loss
 from utils.get_optimizer import get_optimizer
 from utils.extract_feature import extract_feature
 from utils.metrics import mean_ap, cmc, re_ranking
+from IPython import embed
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
@@ -28,6 +28,9 @@ class Main():
         self.query_loader = data.query_loader
         self.testset = data.testset
         self.queryset = data.queryset
+
+        self.mydataset = data.mydataset
+        self.mydata_loader = data.mydata_loader
 
         self.model = model.to('cuda')
         self.loss = loss
@@ -84,54 +87,11 @@ class Main():
         print('[Without Re-Ranking] mAP: {:.4f} rank1: {:.4f} rank3: {:.4f} rank5: {:.4f} rank10: {:.4f}'
               .format(m_ap, r[0], r[2], r[4], r[9]))
 
-    def vis(self):
-
+    def test_my(self):
         self.model.eval()
-
-        gallery_path = data.testset.imgs
-        gallery_label = data.testset.ids
-
-        # Extract feature
-        print('extract features, this may take a few minutes')
-        query_feature = extract_feature(model, tqdm([(torch.unsqueeze(data.query_image, 0), 1)]))
-        gallery_feature = extract_feature(model, tqdm(data.test_loader))
-
-        # sort images
-        query_feature = query_feature.view(-1, 1)
-        score = torch.mm(gallery_feature, query_feature)
-        score = score.squeeze(1).cpu()
-        score = score.numpy()
-
-        index = np.argsort(score)  # from small to large
-        index = index[::-1]  # from large to small
-
-        # # Remove junk images
-        # junk_index = np.argwhere(gallery_label == -1)
-        # mask = np.in1d(index, junk_index, invert=True)
-        # index = index[mask]
-
-        # Visualize the rank result
-        fig = plt.figure(figsize=(16, 4))
-
-        ax = plt.subplot(1, 11, 1)
-        ax.axis('off')
-        plt.imshow(plt.imread(opt.query_image))
-        ax.set_title('query')
-
-        print('Top 10 images are as follow:')
-
-        for i in range(10):
-            img_path = gallery_path[index[i]]
-            print(img_path)
-
-            ax = plt.subplot(1, 11, i + 2)
-            ax.axis('off')
-            plt.imshow(plt.imread(img_path))
-            ax.set_title(img_path.split('/')[-1][:9])
-
-        fig.savefig("show.png")
-        print('result saved to show.png')
-
+        features = extract_feature(self.model, tqdm(self.mydata_loader)).numpy()
+        dist = cdist(features, features)
+        embed()
 
 if __name__ == '__main__':
 
@@ -139,24 +99,27 @@ if __name__ == '__main__':
     model = MGN()
     loss = Loss()
     main = Main(model, loss, data)
+    start_epoch = 1
 
-    if opt.mode == 'train':
+    if opt.weight:
+        model.load_state_dict(torch.load(opt.weight))
+        start_epoch = 1 + int(opt.weight.split('_')[-1][:-3])
 
-        for epoch in range(1, opt.epoch + 1):
+    if opt.test_mine:
+        print('=> Test my photos:')
+        main.test_my()
+
+    elif opt.mode == 'train':
+
+        for epoch in range(start_epoch, opt.epoch + 1):
             print('\nepoch', epoch)
             main.train()
-            if epoch % 50 == 0:
+            if epoch % 5 == 0:
                 print('\nstart evaluate')
                 main.evaluate()
                 os.makedirs('weights', exist_ok=True)
                 torch.save(model.state_dict(), ('weights/model_{}.pt'.format(epoch)))
 
-    if opt.mode == 'evaluate':
+    elif opt.mode == 'evaluate':
         print('start evaluate')
-        model.load_state_dict(torch.load(opt.weight))
         main.evaluate()
-
-    if opt.mode == 'vis':
-        print('visualize')
-        model.load_state_dict(torch.load(opt.weight))
-        main.vis()

@@ -27,18 +27,49 @@ class Data():
         self.trainset = Market1501(train_transform, 'train', opt.data_path)
         self.testset = Market1501(test_transform, 'test', opt.data_path)
         self.queryset = Market1501(test_transform, 'query', opt.data_path)
+        self.mydataset = MyImage(test_transform, opt.my_path)
 
         self.train_loader = dataloader.DataLoader(self.trainset,
                                                   sampler=RandomSampler(self.trainset, batch_id=opt.batchid,
                                                                         batch_image=opt.batchimage),
                                                   batch_size=opt.batchid * opt.batchimage, num_workers=8,
                                                   pin_memory=True)
-        self.test_loader = dataloader.DataLoader(self.testset, batch_size=opt.batchtest, num_workers=8, pin_memory=True)
+        self.test_loader = dataloader.DataLoader(self.testset, batch_size=opt.batchtest, num_workers=8,
+                                                 pin_memory=True, shuffle=False)
         self.query_loader = dataloader.DataLoader(self.queryset, batch_size=opt.batchtest, num_workers=8,
-                                                  pin_memory=True)
+                                                  pin_memory=True, shuffle=False)
 
-        if opt.mode == 'vis':
-            self.query_image = test_transform(default_loader(opt.query_image))
+        self.mydata_loader = dataloader.DataLoader(self.mydataset, batch_size=opt.batchtest, num_workers=8,
+                                                   pin_memory=True, shuffle=False)
+
+
+class MyImage(dataset.Dataset):
+    def __init__(self, transform, data_path):
+        self.transform = transform
+        self.loader = default_loader
+        self.data_path = data_path
+
+        self.imgs = [path for path in self.list_pictures(self.data_path)]
+
+    def __getitem__(self, index):
+        path = self.imgs[index]
+        img = self.loader(path)
+        label = int(path.split('/')[-1].split('.')[0])
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, label
+
+    def __len__(self):
+        return len(self.imgs)
+
+    @staticmethod
+    def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm|npy'):
+        assert os.path.isdir(directory), 'dataset is not exists!{}'.format(directory)
+
+        return sorted([os.path.join(root, f)
+                       for root, _, files in os.walk(directory) for f in files
+                       if re.match(r'([\w]+\.(?:' + ext + '))', f)])
 
 
 class Market1501(dataset.Dataset):

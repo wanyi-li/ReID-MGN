@@ -3,11 +3,14 @@ import argparse
 parser = argparse.ArgumentParser(description='reid')
 
 parser.add_argument('--data_path',
-                    default="Market-1501-v15.09.15",
+                    default="/input/market1501",
                     help='path of Market-1501-v15.09.15')
 
+parser.add_argument('--test_mine', action='store_true')
+parser.add_argument('--my_path', default='/input/pics')
+
 parser.add_argument('--mode',
-                    default='train', choices=['train', 'evaluate', 'vis'],
+                    default='train', choices=['train', 'evaluate'],
                     help='train or evaluate ')
 
 parser.add_argument('--query_image',
@@ -19,7 +22,7 @@ parser.add_argument('--freeze',
                     help='freeze backbone or not ')
 
 parser.add_argument('--weight',
-                    default='weights/model.pt',
+                    default='',
                     help='load weights ')
 
 parser.add_argument('--epoch',
