@@ -142,7 +142,7 @@ if __name__ == '__main__':
 
     if opt.test:
         print('=> Test photo:')
-        embed()
+        main.test(opt.test)
 
     elif opt.mode == 'train':
 
