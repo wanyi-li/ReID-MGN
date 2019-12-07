@@ -81,7 +81,7 @@ class Main():
         top4 = np.argsort(dist, axis=1)[0][:4]
         image_paths = np.array(self.image_paths)
         print(image_paths[top4])
-        embed()
+        print(dist)
 
     def evaluate(self):
         self.model.eval()
@@ -144,8 +144,7 @@ if __name__ == '__main__':
 
     if opt.test:
         main.prepare_database()
-        print('=> Test photo:', opt.test)
-        main.test(opt.test)
+        embed()
 
     elif opt.mode == 'train':
 
