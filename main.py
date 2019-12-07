@@ -59,30 +59,31 @@ class Main():
 
     # test a specified image
     def test(self, image_path):
-        test_transform = transforms.Compose([
-            transforms.Resize((384, 128), interpolation=3),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
-        inputs = default_loader(image_path)
-        inputs = test_transform(inputs).unsqueeze(0)
-        embed()
-        outputs = model(inputs)
-        f1 = outputs[0].data.cpu()
+        self.model.eval()
+        with torch.no_grad():
+            test_transform = transforms.Compose([
+                transforms.Resize((384, 128), interpolation=3),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
+            inputs = default_loader(image_path)
+            inputs = test_transform(inputs).unsqueeze(0)
+            outputs = self.model(inputs)
+            f1 = outputs[0].data.cpu()
 
-        # flip
-        inputs = inputs.index_select(3, torch.arange(inputs.size(3) - 1, -1, -1))
-        outputs = model(inputs)
-        f2 = outputs[0].data.cpu()
-        ff = f1 + f2
+            # flip
+            inputs = inputs.index_select(3, torch.arange(inputs.size(3) - 1, -1, -1))
+            outputs = model(inputs)
+            f2 = outputs[0].data.cpu()
+            ff = f1 + f2
 
-        fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
-        ff = ff.div(fnorm.expand_as(ff))
-        dist = cdist(ff, self.features)
-        top4 = np.argsort(dist, axis=1)[0][:4]
-        image_paths = np.array(self.image_paths)
-        print(image_paths[top4])
-        print(np.sort(dist))
+            fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
+            ff = ff.div(fnorm.expand_as(ff))
+            dist = cdist(ff, self.features)
+            top4 = np.argsort(dist, axis=1)[0][:4]
+            image_paths = np.array(self.image_paths)
+            print(image_paths[top4])
+            print(np.sort(dist))
 
     def evaluate(self):
         self.model.eval()
