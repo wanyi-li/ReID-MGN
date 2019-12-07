@@ -129,7 +129,6 @@ if __name__ == '__main__':
     if not opt.test: model = model.to('cuda')
     loss = Loss()
     main = Main(model, loss, data)
-    main.prepare_database()
     start_epoch = 1
 
     if opt.weight:
@@ -141,6 +140,7 @@ if __name__ == '__main__':
         start_epoch = 1 + int(opt.weight.split('_')[-1][:-3])
 
     if opt.test:
+        main.prepare_database()
         print('=> Test photo:')
         main.test(opt.test)
 
