@@ -34,7 +34,7 @@ class Main():
         self.database = data.database
         self.database_loader = data.database_loader
 
-        self.model = model.to('cuda')
+        self.model = model
         self.loss = loss
         self.optimizer = get_optimizer(model)
         self.scheduler = lr_scheduler.MultiStepLR(self.optimizer, milestones=opt.lr_scheduler, gamma=0.1)
@@ -56,9 +56,10 @@ class Main():
         self.model.eval()
 
         print('extract features, this may take a few minutes')
-        qf, _ = extract_feature(self.model, tqdm(self.query_loader)).numpy()
-        gf, _ = extract_feature(self.model, tqdm(self.test_loader)).numpy()
-
+        qf, _ = extract_feature(self.model, tqdm(self.query_loader))
+        qf = qf.numpy()
+        gf, _ = extract_feature(self.model, tqdm(self.test_loader))
+        gf = gf.numpy()
         def rank(dist):
             r = cmc(dist, self.queryset.ids, self.testset.ids, self.queryset.cameras, self.testset.cameras,
                     separate_camera_set=False,
@@ -89,8 +90,8 @@ class Main():
 
     def prepare_database(self):
         self.model.eval()
-        self.features, self.image_paths = extract_feature(self.model, tqdm(self.database_loader)).numpy()
-        # dist = cdist(features, features)
+        self.features, self.image_paths = extract_feature(self.model, tqdm(self.database_loader), use_gpu=False)
+        self.features = self.features.numpy()
 
     def test(self, image_path):
         test_transform = transforms.Compose([
@@ -99,7 +100,7 @@ class Main():
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
         inputs = default_loader(image_path)
-        inputs = test_transform(inputs)
+        inputs = test_transform(inputs).unsqueeze(0)
         outputs = model(inputs)
         f1 = outputs[0].data.cpu()
 
@@ -111,6 +112,10 @@ class Main():
 
         fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
         ff = ff.div(fnorm.expand_as(ff))
+        dist = cdist(ff, self.features)
+        top4 = np.argsort(dist, axis=1)[0][:4]
+        image_paths = np.array(self.image_paths)
+        print(image_paths[top4])
         embed()
 
 if __name__ == '__main__':
@@ -124,7 +129,7 @@ if __name__ == '__main__':
     start_epoch = 1
 
     if opt.weight:
-        model.load_state_dict(torch.load(opt.weight))
+        model.load_state_dict(torch.load(opt.weight, map_location=torch.device('cpu')))
         start_epoch = 1 + int(opt.weight.split('_')[-1][:-3])
 
     if opt.test:

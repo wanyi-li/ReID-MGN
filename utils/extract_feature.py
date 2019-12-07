@@ -1,12 +1,10 @@
 import torch
-
-
+from IPython import embed
 def extract_feature(model, loader, use_gpu=True):
     features = torch.FloatTensor()
-    image_paths = torch.FloatTensor()
+    image_paths = []
 
     for (inputs, labels) in loader:
-
         if use_gpu:
             inputs = inputs.to('cuda')
         outputs = model(inputs)
@@ -21,5 +19,5 @@ def extract_feature(model, loader, use_gpu=True):
         fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
         ff = ff.div(fnorm.expand_as(ff))
         features = torch.cat((features, ff), 0)
-        torch.cat((image_paths, labels), 0)
+        image_paths.extend(labels)
     return features, image_paths
