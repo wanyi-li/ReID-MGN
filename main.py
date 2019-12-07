@@ -52,10 +52,43 @@ class Main():
             loss.backward()
             self.optimizer.step()
 
+    def prepare_database(self):
+        self.model.eval()
+        self.features, self.image_paths = extract_feature(self.model, tqdm(self.database_loader), use_gpu=False)
+        self.features = self.features.numpy()
+
+    # test a specified image
+    def test(self, image_path):
+        test_transform = transforms.Compose([
+            transforms.Resize((384, 128), interpolation=3),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        inputs = default_loader(image_path)
+        inputs = test_transform(inputs).unsqueeze(0)
+        embed()
+        outputs = model(inputs)
+        f1 = outputs[0].data.cpu()
+
+        # flip
+        inputs = inputs.index_select(3, torch.arange(inputs.size(3) - 1, -1, -1))
+        outputs = model(inputs)
+        f2 = outputs[0].data.cpu()
+        ff = f1 + f2
+
+        fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
+        ff = ff.div(fnorm.expand_as(ff))
+        dist = cdist(ff, self.features)
+        top4 = np.argsort(dist, axis=1)[0][:4]
+        image_paths = np.array(self.image_paths)
+        print(image_paths[top4])
+        embed()
+
     def evaluate(self):
         self.model.eval()
 
         print('extract features, this may take a few minutes')
+        embed()
         qf, _ = extract_feature(self.model, tqdm(self.query_loader))
         qf = qf.numpy()
         gf, _ = extract_feature(self.model, tqdm(self.test_loader))
@@ -88,48 +121,23 @@ class Main():
         print('[Without Re-Ranking] mAP: {:.4f} rank1: {:.4f} rank3: {:.4f} rank5: {:.4f} rank10: {:.4f}'
               .format(m_ap, r[0], r[2], r[4], r[9]))
 
-    def prepare_database(self):
-        self.model.eval()
-        self.features, self.image_paths = extract_feature(self.model, tqdm(self.database_loader), use_gpu=False)
-        self.features = self.features.numpy()
-
-    def test(self, image_path):
-        test_transform = transforms.Compose([
-            transforms.Resize((384, 128), interpolation=3),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
-        inputs = default_loader(image_path)
-        inputs = test_transform(inputs).unsqueeze(0)
-        outputs = model(inputs)
-        f1 = outputs[0].data.cpu()
-
-        # flip
-        inputs = inputs.index_select(3, torch.arange(inputs.size(3) - 1, -1, -1))
-        outputs = model(inputs)
-        f2 = outputs[0].data.cpu()
-        ff = f1 + f2
-
-        fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
-        ff = ff.div(fnorm.expand_as(ff))
-        dist = cdist(ff, self.features)
-        top4 = np.argsort(dist, axis=1)[0][:4]
-        image_paths = np.array(self.image_paths)
-        print(image_paths[top4])
-        embed()
 
 if __name__ == '__main__':
 
     data = Data()
     model = MGN()
-    if opt.test: model = model.cpu()
+    if not opt.test: model = model.to('cuda')
     loss = Loss()
     main = Main(model, loss, data)
     main.prepare_database()
     start_epoch = 1
 
     if opt.weight:
-        model.load_state_dict(torch.load(opt.weight, map_location=torch.device('cpu')))
+        print('=> Load weight:', opt.weight)
+        if opt.test:
+            model.load_state_dict(torch.load(opt.weight, map_location=torch.device('cpu')))
+        else:
+            model.load_state_dict(torch.load(opt.weight))
         start_epoch = 1 + int(opt.weight.split('_')[-1][:-3])
 
     if opt.test:

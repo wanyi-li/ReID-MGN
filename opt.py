@@ -3,11 +3,11 @@ import argparse
 parser = argparse.ArgumentParser(description='reid')
 
 parser.add_argument('--data_path',
-                    default="/input/market1501",
+                    default="/root/market1501",
                     help='path of Market-1501-v15.09.15')
 
 parser.add_argument('--test', default='', help='path to the image you want to test')
-parser.add_argument('--database', default='/input/pics', help='my own images')
+parser.add_argument('--database', default='/root/pics', help='my own images')
 
 parser.add_argument('--mode',
                     default='train', choices=['train', 'evaluate'],
