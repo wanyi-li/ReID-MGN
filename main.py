@@ -142,7 +142,7 @@ if __name__ == '__main__':
     if opt.test:
         main.prepare_database()
         print('=> Test photo:')
-        main.test(opt.test)
+        embed()
 
     elif opt.mode == 'train':
 
