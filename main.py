@@ -82,13 +82,12 @@ class Main():
         top4 = np.argsort(dist, axis=1)[0][:4]
         image_paths = np.array(self.image_paths)
         print(image_paths[top4])
-        embed()
+        print(np.sort(dist))
 
     def evaluate(self):
         self.model.eval()
 
         print('extract features, this may take a few minutes')
-        embed()
         qf, _ = extract_feature(self.model, tqdm(self.query_loader))
         qf = qf.numpy()
         gf, _ = extract_feature(self.model, tqdm(self.test_loader))
@@ -141,8 +140,8 @@ if __name__ == '__main__':
         start_epoch = 1 + int(opt.weight.split('_')[-1][:-3])
 
     if opt.test:
-        print('=> Test photo:', opt.test)
-        main.test(opt.test)
+        print('=> Test photo:')
+        embed()
 
     elif opt.mode == 'train':
 
