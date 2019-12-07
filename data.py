@@ -27,7 +27,6 @@ class Data():
         self.trainset = Market1501(train_transform, 'train', opt.data_path)
         self.testset = Market1501(test_transform, 'test', opt.data_path)
         self.queryset = Market1501(test_transform, 'query', opt.data_path)
-        self.mydataset = MyImage(test_transform, opt.my_path)
 
         self.train_loader = dataloader.DataLoader(self.trainset,
                                                   sampler=RandomSampler(self.trainset, batch_id=opt.batchid,
@@ -39,8 +38,9 @@ class Data():
         self.query_loader = dataloader.DataLoader(self.queryset, batch_size=opt.batchtest, num_workers=8,
                                                   pin_memory=True, shuffle=False)
 
-        self.mydata_loader = dataloader.DataLoader(self.mydataset, batch_size=opt.batchtest, num_workers=8,
-                                                   pin_memory=True, shuffle=False)
+        self.database = MyImage(test_transform, opt.database)
+        self.database_loader = dataloader.DataLoader(self.database, batch_size=opt.batchtest, num_workers=8,
+                                                     pin_memory=True, shuffle=False)
 
 
 class MyImage(dataset.Dataset):
@@ -54,11 +54,10 @@ class MyImage(dataset.Dataset):
     def __getitem__(self, index):
         path = self.imgs[index]
         img = self.loader(path)
-        label = int(path.split('/')[-1].split('.')[0])
         if self.transform is not None:
             img = self.transform(img)
 
-        return img, label
+        return img, path
 
     def __len__(self):
         return len(self.imgs)

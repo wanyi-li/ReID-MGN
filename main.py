@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from scipy.spatial.distance import cdist
+from torchvision import transforms
 from tqdm import tqdm
 import matplotlib
 
@@ -17,6 +18,7 @@ from utils.get_optimizer import get_optimizer
 from utils.extract_feature import extract_feature
 from utils.metrics import mean_ap, cmc, re_ranking
 from IPython import embed
+from torchvision.datasets.folder import default_loader
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
@@ -29,8 +31,8 @@ class Main():
         self.testset = data.testset
         self.queryset = data.queryset
 
-        self.mydataset = data.mydataset
-        self.mydata_loader = data.mydata_loader
+        self.database = data.database
+        self.database_loader = data.database_loader
 
         self.model = model.to('cuda')
         self.loss = loss
@@ -38,7 +40,6 @@ class Main():
         self.scheduler = lr_scheduler.MultiStepLR(self.optimizer, milestones=opt.lr_scheduler, gamma=0.1)
 
     def train(self):
-
         self.scheduler.step()
 
         self.model.train()
@@ -52,12 +53,11 @@ class Main():
             self.optimizer.step()
 
     def evaluate(self):
-
         self.model.eval()
 
         print('extract features, this may take a few minutes')
-        qf = extract_feature(self.model, tqdm(self.query_loader)).numpy()
-        gf = extract_feature(self.model, tqdm(self.test_loader)).numpy()
+        qf, _ = extract_feature(self.model, tqdm(self.query_loader)).numpy()
+        gf, _ = extract_feature(self.model, tqdm(self.test_loader)).numpy()
 
         def rank(dist):
             r = cmc(dist, self.queryset.ids, self.testset.ids, self.queryset.cameras, self.testset.cameras,
@@ -87,27 +87,49 @@ class Main():
         print('[Without Re-Ranking] mAP: {:.4f} rank1: {:.4f} rank3: {:.4f} rank5: {:.4f} rank10: {:.4f}'
               .format(m_ap, r[0], r[2], r[4], r[9]))
 
-    def test_my(self):
+    def prepare_database(self):
         self.model.eval()
-        features = extract_feature(self.model, tqdm(self.mydata_loader)).numpy()
-        dist = cdist(features, features)
+        self.features, self.image_paths = extract_feature(self.model, tqdm(self.database_loader)).numpy()
+        # dist = cdist(features, features)
+
+    def test(self, image_path):
+        test_transform = transforms.Compose([
+            transforms.Resize((384, 128), interpolation=3),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        inputs = default_loader(image_path)
+        inputs = test_transform(inputs)
+        outputs = model(inputs)
+        f1 = outputs[0].data.cpu()
+
+        # flip
+        inputs = inputs.index_select(3, torch.arange(inputs.size(3) - 1, -1, -1))
+        outputs = model(inputs)
+        f2 = outputs[0].data.cpu()
+        ff = f1 + f2
+
+        fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
+        ff = ff.div(fnorm.expand_as(ff))
         embed()
 
 if __name__ == '__main__':
 
     data = Data()
     model = MGN()
+    if opt.test: model = model.cpu()
     loss = Loss()
     main = Main(model, loss, data)
+    main.prepare_database()
     start_epoch = 1
 
     if opt.weight:
         model.load_state_dict(torch.load(opt.weight))
         start_epoch = 1 + int(opt.weight.split('_')[-1][:-3])
 
-    if opt.test_mine:
-        print('=> Test my photos:')
-        main.test_my()
+    if opt.test:
+        print('=> Test photo:', opt.test)
+        main.test(opt.test)
 
     elif opt.mode == 'train':
 

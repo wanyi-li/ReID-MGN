@@ -6,8 +6,8 @@ parser.add_argument('--data_path',
                     default="/input/market1501",
                     help='path of Market-1501-v15.09.15')
 
-parser.add_argument('--test_mine', action='store_true')
-parser.add_argument('--my_path', default='/input/pics')
+parser.add_argument('--test', default='', help='path to the image you want to test')
+parser.add_argument('--database', default='/input/pics', help='my own images')
 
 parser.add_argument('--mode',
                     default='train', choices=['train', 'evaluate'],
