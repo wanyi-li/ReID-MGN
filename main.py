@@ -72,7 +72,7 @@ class Main():
             f1 = outputs[0].data.cpu()
             # flip
             inputs = inputs.index_select(3, torch.arange(inputs.size(3) - 1, -1, -1))
-            outputs = model(inputs)
+            outputs = self.model(inputs)
             f2 = outputs[0].data.cpu()
             ff = f1 + f2
 
