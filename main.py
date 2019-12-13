@@ -68,21 +68,22 @@ class Main():
             ])
             inputs = default_loader(image_path)
             inputs = test_transform(inputs).unsqueeze(0)
-            outputs = self.model(inputs)
-            f1 = outputs[0].data.cpu()
-
+            outputs = self.model(inputs, test=True)
+            #f1 = outputs[0].data.cpu()
+            f1 = outputs.data.cpu()
             # flip
             inputs = inputs.index_select(3, torch.arange(inputs.size(3) - 1, -1, -1))
-            outputs = model(inputs)
-            f2 = outputs[0].data.cpu()
+            outputs = model(inputs, test=True)
+            #f2 = outputs[0].data.cpu()
+            f2 = outputs.data.cpu()
             ff = f1 + f2
 
             fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
             ff = ff.div(fnorm.expand_as(ff))
             dist = cdist(ff, self.features)
-            top4 = np.argsort(dist, axis=1)[0][:4]
+            top10 = np.argsort(dist, axis=1)[0][:10]
             image_paths = np.array(self.image_paths)
-            print(image_paths[top4])
+            print(image_paths[top10])
             print(np.sort(dist))
 
     def evaluate(self):

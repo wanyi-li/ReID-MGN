@@ -6,7 +6,7 @@ parser.add_argument('--data_path',
                     default="/root/market1501",
                     help='path of Market-1501-v15.09.15')
 
-parser.add_argument('--test', default='', help='enter test')
+parser.add_argument('--test', action='store_true', help='enter test')
 parser.add_argument('--database', default='/root/pics', help='my own images')
 
 parser.add_argument('--mode',
