@@ -5,7 +5,6 @@ from torchvision.models.resnet import resnet50, Bottleneck
 
 num_classes = 751  # change this depend on your dataset
 
-
 class MGN(nn.Module):
     def __init__(self):
         super(MGN, self).__init__()
@@ -82,8 +81,8 @@ class MGN(nn.Module):
         nn.init.kaiming_normal_(fc.weight, mode='fan_out')
         # nn.init.normal_(fc.weight, std=0.001)
         nn.init.constant_(fc.bias, 0.)
-
-    def forward(self, x, test=False):
+    
+    def forward(self, x):
         x = self.backbone(x)
 
         p1 = self.p1(x)
@@ -123,5 +122,4 @@ class MGN(nn.Module):
         l2_p3 = self.fc_id_256_2_2(f2_p3)
 
         predict = torch.cat([fg_p1, fg_p2, fg_p3, f0_p2, f1_p2, f0_p3, f1_p3, f2_p3], dim=1)
-        if test: return predict
-        else: return predict, fg_p1, fg_p2, fg_p3, l_p1, l_p2, l_p3, l0_p2, l1_p2, l0_p3, l1_p3, l2_p3
+        return predict, fg_p1, fg_p2, fg_p3, l_p1, l_p2, l_p3, l0_p2, l1_p2, l0_p3, l1_p3, l2_p3 

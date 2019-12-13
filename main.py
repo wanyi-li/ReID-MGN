@@ -68,14 +68,12 @@ class Main():
             ])
             inputs = default_loader(image_path)
             inputs = test_transform(inputs).unsqueeze(0)
-            outputs = self.model(inputs, test=True)
-            #f1 = outputs[0].data.cpu()
-            f1 = outputs.data.cpu()
+            outputs = self.model(inputs)
+            f1 = outputs[0].data.cpu()
             # flip
             inputs = inputs.index_select(3, torch.arange(inputs.size(3) - 1, -1, -1))
-            outputs = model(inputs, test=True)
-            #f2 = outputs[0].data.cpu()
-            f2 = outputs.data.cpu()
+            outputs = model(inputs)
+            f2 = outputs[0].data.cpu()
             ff = f1 + f2
 
             fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
